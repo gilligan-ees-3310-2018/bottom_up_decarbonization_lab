@@ -1,0 +1,287 @@
+---
+title: "New Tools for Data Analysis"
+author: "Jonathan Gilligan"
+date: "10/20/2018"
+fontfamily: "newtxtext,newtxmath"
+fontsize: "12pt"
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(broom)
+library(magrittr)
+
+theme_set(theme_bw())
+```
+# Some New Tools for Working with Data
+
+There are two new tools we will use in working with data for this lab:
+
+## Getting fancy with the pipe operator (`%>%`)
+
+With the tidyverse, we often use the "pipe" operator `%>%` to send the
+output from one function into the input of another function. In most cases,
+this works very simply and it uses the output from the function on the
+left as the first argument of the function on the right. 
+
+For instance, the `filter` function selects certain rows in a data frame or
+tibble. I will work here with examples from the built-in `storms` data
+frame that lists a subset of hurricanes from the National Oceanic and 
+Atmospheric Administration's Atlantic hurricane database.
+The data includes the positions and attributes of 198 tropical storms, measured
+every six hours during the lifetime of the storm.
+
+Let's select Hurricane Katrina from 2005 (I specify the year because there
+were two earlier Katrinas in 1981 and 1999; storm names are re-used 
+periodically unless they are retired because a storm with that name becomes 
+historically important).
+```r
+data(storms)
+katrina <- filter(storms, name == "Katrina", year == 2005)
+```
+and we can also do the same thing using the pipe operator like this:
+```r
+storms %>% filter(name == "Katrina", year == 2005)
+```
+What the pipe operator `%>%` does behind the scenes is take that output of
+whatever is on the left (the data frame `storms`) and stick it in front
+of the arguemnts for the function on the right so the two examples given
+above are equivalent.
+
+We have been usuing the pipe operator throughout the semester to combine 
+functions. 
+Suppose we want to `mutate` the `storms` data frame to add a new 
+column `ts_area`
+that is equal to `pi * (ts_diameter / 2)^2`, where `ts_diameter` is a column
+in `storms` that corresponds to the diameter (in nautical miles) of the area 
+in which winds are tropical storm strength or greater (36 knots), 
+and then we want to select only the data where the tropical storm area is 
+greater than 10,000 square nautical miles, and finally sort the data so the
+rows of the data frame go from largest to smallest tropical storm area.
+We can do that as follows:
+```r
+# First way
+df1 = arrange(filter(mutate(storms, ts_area = pi * (ts_diameter / 2.0)^2), 
+     ts_area > 10000), desc(ts_area))
+
+# Second way, using a temporary variable
+df2 = mutate(storms, ts_area = pi * (ts_diameter / 2.0)^2)
+df2 = filter(df2, ts_area > 10000)
+df2 = arrange(df2, desc(ts_area))
+
+# Third way, using the pipe operator
+df3 = storms %>% mutate(storms, ts_area = pi * (ts_diameter / 2.0)^2) %>%
+     filter(ts_area > 10000) %>% arrange(desc(ts_area))
+```
+We use pipes because often they are simpler to understand. If we use the first
+way in the example above, if we are combining many functions, nesting functions
+inside other functions becomes very difficult to read and understand.
+The second way, of using temporary variables is fine, but it can get confusing 
+to have lots of variable names that we use only one time to pass data from
+one function to another. The third way, using the pipe operator makes it easier
+to understand how the data is moving through the processing pipeline.
+
+But the way pipe operators work can sometimes get in the way of things we want
+to do.
+
+First, suppose that I want to send the results of a function into the second
+or third argument of a subsequent function instead of the first argument?
+We use the `lm` function to calculate the slope and intercept of a trend line
+that best fits some data. The lm function expects the formula for the line
+to fit to be the first argument and the data to be the second.
+
+Suppose I want to examine hurricanes from  the year 2005 and look for a 
+relationship between the air pressure in the eye and the wind speed,
+but only during the time when they are classified as hurricanes.
+
+I can do this as follows:
+```r
+hurricanes_2005 = storms %>% filter(status == "hurricane", year == 2005)
+lin_fit = lm(wind ~ pressure, data = hurricanes_2005)
+```
+The `lm` function looks at the data given by the `data` argument and
+then finds the best line that characterizes the linear relationship
+`wind ~ pressure`, which means that the wind is a linear function of the
+pressure (this would be the slope of a graph where `wind` is on the y-axis
+and `pressure` is on the x-axis).
+
+Suppose that I would like to pipe data from the `filter` function to the
+`lm` function. I have a problem because the pipe operator would put the
+output from `filter` as the first argument of the `lm` function, but in
+`lm` the first argument is the formula and `data` is the second.
+I can do this as follows:
+```r
+lin_fit2 = storms %>% filter(status == "hurricane", year == 2005) %>%
+           lm(wind ~ pressure, data = .)
+```
+The pipe operator creates a new variable `.` (the period), which gets the
+value of whatever is on the left of the operator. If I don't use the `.`
+in the function on the right, the pipe operator invisibly puts `.` in
+the first argument so `foo(x) %>% bar(y, z)` is re-written behind the 
+scenes to become
+```r
+. = foo(x)
+bar(., y, z)
+```
+However, if I want to use the `.` somewhere else, I can do that explicitly
+and when the pipe operator looks at the function on its right, it knows
+not to stick the `.` in the first argument if I use `.` in the function
+call. This, I could write `foo(y) %>% bar(x, ., z)` if I want to substitute
+the output of `foo(y)` for the second argument of `bar`.
+
+## Extracting columns from a data frame in a pipeline
+
+If I just want to look at the names of the hurricanes from the `storms` data
+frame, I can use the `$` operator:
+```r
+names = storms$name
+```
+But suppose that I want to filter the storms and then extract the names.
+What are the names of category 5 hurricanes?
+```r
+cat_5 = storms %>% filter(category == 5)
+names = cat_5$name
+```
+Suppose I want to do this without creating a variable `cat_5`?
+I could try 
+```r
+# This will give an error
+names = storms %>% filter(category == 5)$name
+```
+but it turns out that this doesn't work because of the way the pipe operators
+work.
+To do this, I need to load the `magrittr` library and use the `%$%` operator
+instead of `$`:
+```r
+# This will work
+names = storms %>% filter(category == 5) %$% name
+```
+The `%$%` operator works like the pipe operator, but instead of calling a function,
+it extracts the specified column (in this case, `name`).
+
+This will be useful for what comes next.
+
+## Tidying up results of statistical modeling
+
+`lm` is one example of a lot of powerful functions in R that let you analyze
+data by fitting models. A statistical model is an idealized functional relationship
+between different attributes of the data (attributes are represented by columns
+in a data frame). 
+For instance, a linear model idealizes two columns in the data frame in terms
+of a linear relationship. For instance `y~x` represents a model in which
+$y = a + b x$. In fact, the data rarely lie exactly along a line, but 
+the `lm` function will find the values for `a` and `b` that define the line
+that best  relates _y_ to _x_ (specifically this will be the line such that
+the minimizes the sum of the square of the errors between the actual _y_
+and the line:
+$\sum_i (y_i - (a + b x_i))^2$.
+
+We will be using `lm` in this lab to find the rates of change of different
+parameters in the Kaya identity. For that we want to examine the slopes of the
+lines identified by `lm`. We can do that as follows for the slope that relates
+wind speed to pressure for a hurricane.
+
+First, let's plot the two variables to see wether there's an apparent 
+relationship. 
+Let's look at hurricanes from 2005:
+
+```{r plot_pressure_wind, echo=TRUE, eval=TRUE, include=TRUE, warning=FALSE, message=FALSE}
+storms %>% filter(status == "hurricane", year == 2005) %>%
+  ggplot(aes(x = pressure, y = wind)) + geom_point(na.rm = T)
+```
+
+The data clearly doesn't lie on a straight line, but there is a clear
+relationship that lower pressures tend to go along with higher wind
+speeds and higher pressures with lower wind speeds.
+
+First, let's review how we can fit a relationship between wind speed and 
+pressure for hurricanes from 2005:
+```r
+lin_fit = storms %>% filter(status == "hurricane", year == 2005) %>%
+           lm(wind ~ pressure, data = .)
+```
+But how can we get the slope out of the variable `lin_fit`?
+Here we use the `broom` package, which gives us a `tidy` function
+that will tidy up the results of statistical models and put them
+into a nice data frame:
+
+```{r tidy_fit_1, echo=TRUE, eval=TRUE, include=TRUE, warning=FALSE, message=FALSE}
+lin_fit = storms %>% filter(status == "hurricane", year == 2005) %>%
+           lm(wind ~ pressure, data = .)
+tidy(lin_fit)
+```
+
+Here, `term` tells us the parameter: `(Intercept)` is the intercept 
+(_a_ in the formula above), and `pressure` is the slope with respect to the
+pressure (_b_ in the formula above).
+`estimate` is the estimate of the parameter (intercept or slope),
+`std.error` is the uncertainty about the estimate of the parameter,
+`statistic` and `p.value` are used for statistical hypothesis testing and we
+will not use them so you can ignore them.
+
+If I just want the slope, I can get that as follows:
+```{r tidy_fit_2, echo=TRUE, eval=TRUE, include=TRUE, warning=FALSE, message=FALSE}
+lin_fit = storms %>% filter(status == "hurricane", year == 2005) %>%
+           lm(wind ~ pressure, data = .)
+slope = tidy(lin_fit) %>% filter(term == "pressure") %$% estimate
+slope
+```
+
+Here, `filter` selects the row where term equals "pressure" and `%$% estimate`
+then selects the `estimate` column.
+
+We can write this more compactly as follows:
+```{r tidy_fit_3, echo=TRUE, eval=TRUE, include=TRUE, warning=FALSE, message=FALSE}
+slope = storms %>% 
+           filter(status == "hurricane", year == 2005) %>%
+           lm(wind ~ pressure, data = .) %>% 
+           tidy() %>% 
+           filter(term == "pressure") %$% estimate
+slope
+```
+
+# Writing functions
+
+If you are going to do the same calculation many times in R it is often useful
+to define a function that performs that calculation and then you can simply
+call the function whenever you want to do the calculation with new values.
+
+For instance, in the "Growth Rates and Trends" section of the assignment
+for the bottom-up decarbonization lab, we see that if we have a quantity
+_q_ that is growing at a steady percentage rate $r_q$ each year and we know
+the value in one year $y_0$ and want to predict what the value will be at
+a future year $y$, we can calculate this as follows:
+$$ q(y) = q(y_0) \times \exp(r_q \times (y - y_0)). $$
+We can write this as an R function that we can call for different quantities and
+years:
+```{r growth_function, echo=TRUE, include=TRUE}
+growth = function(q_0, rate, start_year, end_year) {
+  q_0 * exp(rate * (end_year - start_year))
+}
+```
+A function definition has three parts:
+First we have the name of the function (`growth`), then we have the word
+`function`, followed by the arguments that the user must supply to the function
+`(q_0, rate, start_year, end_year)`, and then the body of the function, between
+curly braces `{ ... }`.
+When you call the function, it executes all of the code between the curly braces
+and returns the last value calculated before the closing brace.
+Thus, we can call the function like this to estimate the world population 
+in 2050
+```{r call_function, echo=TRUE, include=TRUE}
+P_2017 = 7.53 # world population was 7.53 billion
+r_P = 0.0141  # growth rate is 1.41% per yer
+P_2050 = growth(q_0 = P_2017, rate = r_P, start_year = 2017, end_year = 2050)
+P_2050
+```
+If you don't specify the name of the parameter, the function fills them out in
+order, so we could also write 
+```{r call_function_2, echo=TRUE, include=TRUE}
+P_2017 = 7.53 # world population was 7.53 billion
+r_P = 0.0141  # growth rate is 1.41% per yer
+P_2050 = growth(P_2017, r_P, 2017, 2050)
+P_2050
+```

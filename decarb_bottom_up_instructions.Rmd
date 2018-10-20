@@ -1,0 +1,550 @@
+---
+title: "Instructions for Bottom-Up Decarbonization Policy Analysis Lab"
+author: "Jonathan Gilligan"
+date: "Reading for Lab on Monday Oct.\ 22"
+fontfamily: "newtxtext,newtxmath"
+fontsize: "12pt"
+output:
+  pdf_document: 
+    keep_tex: yes
+    number_sections: yes
+    toc: yes
+  html_document: 
+    keep_md: yes
+  md_document: default
+  github_document: default
+editor_options: 
+  chunk_output_type: console
+---
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+is_output_html <- function() {
+  is_html <- TRUE
+  header <- rmarkdown:::parse_yaml_front_matter(
+    readLines(knitr::current_input())
+  )
+  if ("output.blogdown::html_page" %in% names(header)) {
+    is_html <-  TRUE
+  } else if ("output" %in% names(header)) {
+    if (is.list(header$output)) {
+      output <- names(header$output)[1]
+    } else {
+      output <- header$output[1]
+    }
+    if (str_detect(output, regex("(pdf|word)_document", ignore_case = TRUE))) {
+      is_html <- FALSE
+    }
+  }
+  is_html
+}
+
+
+getOutputFormat <- function() {
+  output <- rmarkdown:::parse_yaml_front_matter(
+    readLines(knitr::current_input())
+    )$output
+  if (is.list(output)){
+    return(names(output)[1])
+  } else {
+    return(output[1])
+  }
+}
+
+data_dir = "_data"
+script_dir = "_scripts"
+
+library(pacman)
+p_load(magrittr, tidyverse, lubridate, knitr, broom)
+p_load_gh("jonathan-g/kayadata")
+
+theme_set(theme_bw(base_size = 15))
+
+if (!dir.exists(data_dir)) dir.create(data_dir)
+
+source(file.path(script_dir, "utils.R"), chdir = T)
+
+due_date_1 <- date("2018-10-30")
+due_date_2 <- date("2018-11-05")
+
+long_due_date_1 <- stamp("Monday, March 1")(due_date_1)
+short_due_date_1 <- stamp("Mar. 1")(due_date_1)
+
+long_due_date_2 <- stamp("Monday, March 1")(due_date_2)
+short_due_date_2 <- stamp("Mar. 1")(due_date_2)
+
+start_year <- max(get_kaya_data("United States")$year, na.rm = T)
+after_start_year <- start_year + 1
+
+target_ref_year <- 2005
+early_target_year <- 2030
+late_target_year  <- 2050
+
+early_target_reduction <- 0.36
+late_target_reduction  <- 0.80
+
+eia_report_year <- max(get_top_down_values("United States")$year, na.rm = T)
+donut_year <- max(kayadata::get_fuel_mix("United States")$year, na.rm = T)
+
+IEO_url <- "http://www.eia.gov/forecasts/ieo/"
+EIA_table_url <- "http://www.eia.gov/oiaf/aeo/tablebrowser"
+
+bottom_up_country_assignments <- bind_rows(
+  tibble(class = "Undergraduates", 
+         region = c("World", "United States", "China")),
+  tibble(class = "Grad Students", 
+         region = c("World", "United States", "China",
+                     "India", "Brazil"))
+)
+
+rcp_26 <- tribble(
+  ~region, ~target_year, ~ref_year, ~reduction,
+  "Australia/New Zealand", 2050, 2005,  0.82,
+  "Canada",                2050, 2005,  0.72,
+  "China",                 2050, 2005,  0.78,
+  "India",                 2050, 2005,  0.73,
+  "Japan",                 2050, 2005,  0.66,
+  "South Korea",           2050, 2005,  0.67,
+  "United States",         2050, 2005,  0.73,
+  "Africa",                2050, 2005,  0.28,
+  "Latin America",         2050, 2005,  0.40,
+  "Middle East",           2050, 2005,  0.32,
+  "Southeast Asia",        2050, 2005, -0.17,
+  "Western Europe",        2050, 2005,  0.74,
+  "World",                 2050, 2005,  0.36
+)
+
+```
+# Introduction
+
+The purpose of this homework is to get a sense of the challenges to cutting 
+emissions significantly by analyzing several representative emissions-reduction
+policies.
+These policy analyses will follow the methods Roger Pielke used in 
+Chapters 3--4 of _The Climate Fix_.
+
+I encourage you to work with a partner on this lab, but you should write up
+your own lab report individually.
+
+## Data Resources
+
+To make things simple for you, I have prepared an interactive web application, 
+available at <https://ees3310.jgilligan.org/decarbonization/}, with almost all 
+the data you will need for this project. 
+It contains historical data on population, GDP, energy consumption, and 
+CO~2~ emissions for many countries and regions of the world. 
+
+I have also provided an R package that you can install on your own computer 
+through R Studio:
+```r
+library(pacman)
+p_load_gh("jonathan-g/kayadata")
+```
+
+Finally, there is an experimental version of the interactive web application
+that you can install and run on your computer using RStudio, but it is still
+experimental and may not work perfectly.
+You can install it in RStudio like this:
+```r
+library(pacman)
+p_load_gh("jonathan-g/kayadata")
+```
+and then you can run the application like this:
+```r
+library(kayatool)
+launch_kayatool()
+```
+**Note:** you should not put `launch_kaya_tool()` in RMarkdown documents,
+like your lab report, because launching an interactive web application 
+when you knit your report will prevent the report from knitting correctly.
+
+### Using the interactive web application:
+
+To use the decarbonization web app, start by selecting a country on the 
+left-hand control panel. Then you can set the parameters for your policy goals: 
+The target year for accomplishing the emissions reductions, the reductions you 
+hope to achieve for the country, and the reference year. 
+
+For instance, if your 
+goal is for emissions in `r late_target_year` to be 
+`r round(100 * late_target_reduction)`% less than they were in 
+`r target_ref_year`, you would 
+put 
+`r late_target_year` for the target year, 
+`r round(100 * late_target_reduction)`% for the emissions reduction, 
+and `r target_ref_year` for the reference year.  
+If you want to indicate a growth in emissions, rather than a reduction, 
+just enter a negative number for the emissions reduction.
+
+You can also select what year to use for starting the calculation of bottom-up 
+trends in the Kaya-identity parameters 
+population _P_, 
+per-capita gross-domestic product _g_, 
+energy intensity of the economy _e_, 
+and carbon intensity of the energy supply _f_. 
+When you calculate decarbonization rates in this homework project, you will be 
+focusing on the carbon intensity of the economy, which is given by the 
+product _ef_.
+
+After you have set the parameters you want, the bottom of the left panel will 
+show a "Bottom-up Analysis" table that shows the average percentage growth 
+rates for the Kaya parameters, their actual values in 2017, and the bottom-up 
+projections for what their values will be in the target year (2050 by default).
+
+The tabs on the right-hand side of the web page show:
+
+* "**Trends:**" shows historical trends and the calculated growth rate for the 
+  Kaya parameters. You select a variable (_P_, _g_, _e_, _f_, or various 
+  multiples _ef_, $G = Pg$, $E = Pge$, or $F = Pgef$) The app shows two graphs: 
+  on the right, the value of the parameter and on the left, 
+  the natural logarithm of the parameter, which we use to calculate 
+  percentage growth rates. 
+  The graphs show the points that are used in calculating the trends in 
+  darker red and the points not used in the trend calculation in lighter red. 
+  If you change the starting year on the left-hand panel, you will see the 
+  colors of the dots change to reflect this.
+
+    The trend is shown in black on the left-hand graph. If the quantity is 
+    changing at a steady rate, the data points will follow a straight line 
+    (the trend line). Sometimes you will see that the variables _e_ and _f_ do 
+    not seem to be changing at a steady rate, but the product _ef_ is. 
+    Explore the trends for the different variables and notice which seem to be 
+    following a steady growth or reduction and which do not.
+
+    If you hold the mouse pointer over a data point on either graph, a tool-tip 
+    will pop up showing the value of that variable in that year.
+
+* "**Calculations**" shows the steps for you to follow for each country in this 
+  homework exercise.
+
+* "**Implied Decarbonization**" shows the historical trend in the carbon 
+  intensity of the economy (_ef_) and the implied future changes in order to 
+  meet the policy goal that you set.
+
+* "**Energy Mix**" shows the mixture of energy sources (coal, natural gas, oil, 
+  nuclear, and renewables) that provide the country or region's energy supply. 
+  From this page, you can download the energy mix for the country you're 
+  looking at as a text file, using comma-separated value (csv) format, which 
+  you can read into R, Excel, or any other common data anlysis program.
+
+* "**Historical**" shows a table of historical values for the different Kaya 
+  parameters. This is a convenient place to look up the exact numbers for your 
+  country in a particular year.
+  This sheet also has a download button that lets you download the data in a 
+  `.csv` file.
+
+# Background and Context
+
+The basic framework for your analysis will be the Kaya identity:
+$$
+F = P \times g \times e \times f,
+$$
+where 
+_F_ is the CO~2~ emissions (in million metric tons of carbon per year), 
+_P_ is the population (in billion people), 
+_g_ is the per-capita GDP (in thousands of dollars per person per year), 
+_e_ is the energy intensity of the economy (in quads per trillion dollars of GDP), 
+and _f_ is the carbon intensity of the energy supply (in million metric tons of 
+carbon dioxide per quad).^[One metric ton = 1000 kg = 1.1 English tons = 2200 pounds] 
+A quad means one quadrillion British thermal units (BTU) of energy. 
+One quad is approximately equal to 8 billion gallons of gasoline or 
+36 million tons of coal. 
+It is roughly equal to the electricity used by 
+26 million homes in a year, 
+or the amount of electricity generated by 
+15 nuclear power plants in a year.
+
+We will also focus on the carbon intensity of the economy (in metric tons of 
+CO~2~ emissions per million dollars of GDP), which 
+equals $e \times f$.^[Note that _e_ is in units of quads per trillion dollars 
+of GDP and _f_ is in units of million metric tons of CO~2~ per quad, 
+so if you multiply the units you get million metric tons of CO~2~ per 
+trillion dollars of GDP, which equals metric tons of CO~2~ per 
+million dollars of GDP.]
+
+## Growth Rates and Trends
+
+We will assume that all of the rates of change in the growth and 
+decarbonization trends we are studying will be constant from year to year.
+A constant percentage rate of change implies that the quantity follows
+an exponential growth function, 
+so if you know the values for _P_, _g_, _e_, and _f_ in `r start_year`, 
+then at some future year _y_:
+
+```{r lefteqn_for_mathjax, echo=FALSE, eval=TRUE, results="asis", message=FALSE, warning=FALSE}
+# Insert missing definition of \lefteqn for MathJax if the output is
+# a variant on HTML.
+message("Output format = ", getOutputFormat())
+if(is_output_html()) {
+  message("Defining lefteqn")
+  cat("$\\def\\lefteqn#1{\\rlap{\\displaystyle{#1}}}$\n")
+} else {
+  message("Not defining lefteqn")
+  cat("")
+}
+```
+$$
+\begin{aligned}
+  P(y) &= P(`r start_year`) \times \exp(r_P (y - `r start_year`)),\\
+  g(y) &= g(`r start_year`) \times \exp(r_g (y - `r start_year`)),\\
+  e(y) &= e(`r start_year`) \times \exp(r_e (y - `r start_year`)),\\
+  \lefteqn{\text{and}}\\
+  f(y) &= f(`r start_year`) \times \exp(r_f (y - `r start_year`)),\\
+\end{aligned}
+$$
+where _r~P~_ is the growth rate of the population, _r~g~_ is the growth rate of the per-capita GDP, etc.
+Increasing energy efficiency and/or decarbonization of the energy supply mean that _r~e~_ and/or _r~f~_ are negative.
+
+------
+
+**Remember that you have to divide percentages by 100 to get the rates for 
+these equations: if _r_ is 3%, you use 0.03, not 3.0 in the equations.**
+
+**In your math classes and on your calculator, you have probably seen the 
+exponential function exp(_x_) written as _e^x^_, where _e_ is the base of the 
+natural logarithm (_2.718..._). 
+But since I am using the letter _e_ to represent the energy intensity of the 
+economy 
+(the energy consumption divided by the GDP), 
+I am writing it as exp(_x_) so you won't get confused by two different 
+meanings of "_e_." Also, in R the exponential function is `exp()`.**
+
+------
+
+Because of the properties of the exponential function, when you multiply two or 
+more quantities together, the rate of change of the product is the sum of the 
+rates of change of each of the quantities:
+$$
+\begin{aligned}
+  \mathrm{GDP}(y) &= P(y)\times g(y)\\
+    &= P(`r start_year`) \times \exp(r_p (y - `r start_year`)) 
+    \times g(`r start_year`) \times \exp(r_g (y - `r start_year`))\\
+    &= P(`r start_year`)\times g(`r start_year`)
+    \times \exp((r_P + r_g) (y - `r start_year`))\\
+    \lefteqn{\text{so}}\\
+  r_{\mathrm{GDP}} &= r_{P\times g} = r_P + r_g.
+\end{aligned}
+$$
+
+The web app does these calculations so you can check your results.
+So that errors in the first parts of a problem don't cascade through the whole 
+exercise, you should work the problems exercises with RMarkdown and compare 
+your work to the "Bottom-up Analysis" table to make sure you know how to do it.
+
+
+# The Assignment
+
+For this assignment, analyze the economy and carbon emissions from the whole 
+world, and then for individual countries.
+
+## Decarbonization Lab #1, due `r long_due_date_1`
+
+For this lab, you will do a bottom-up analysis of the following countries/regions:
+
+```{r country_table}
+bottom_up_country_assignments %>% group_by(class) %>%
+  summarize(regions = str_c(region, collapse = ", ")) %>%
+  kable(align = "ll")
+```
+
+For the bottom-up analysis, use the Kaya Identity to make reasonable 
+extrapolations of the population and per-capita GDP through `r late_target_year`. 
+
+Repeat the steps below for each country or region:
+
+### Detailed steps:
+
+Each step has two alternative methods: using the interactive web application or 
+using the `kayadata` library in RStudio:
+
+1. Open the web app at <https://ees3310.jgilligan.org/decarbonization>, 
+   select the country you want to analyze, to start, leave the 
+   "Calculate trends starting in" at its default value (1980), 
+   and write down the most current (`r start_year`) values for 
+   _P_, _g_, _e_, _f_, _ef_, and _F_. 
+   
+     Alternately, use the `kayadata` package in RStudio to load the data for
+     your country or region. Below is an example of looking up the data
+     for the OECD:
+     ```{r get_oecd_data, echo=TRUE, eval=TRUE, include=TRUE, warning=FALSE, message=FALSE}
+     library(kayadata)
+     oecd_data = get_kaya_data("OECD")
+     oecd_latest_year = oecd_data %>% filter(year == 2017)
+     ```
+     You can get a list of all the countries and regions that are available 
+     from `kaya_region_list()`.
+   
+     **Start with the whole world first and do the whole analysis for the 
+     world before doing it for the individual countries.**
+
+2. Next, go to the "Trends" tab and look at the graphs of 
+   ln(_P_), ln(_g_), ln(_e_), ln(_f_), and ln(_ef_).
+   
+    * Write down the rate of change for each variable.
+    * For each graph compare the real data (in red) to the trend line 
+      (the straight blue line).
+    * Does the trend line look a like a good description of the data?
+    * Is there a better starting year for calculating trends? 
+      If so, adjust ``Calculate trends starting in'' to this year
+    * Do you anticipate a problem if we make policy by assuming that 
+      the Kaya identity variables will follow the trend line for the next 
+      several decades?
+
+     You should also plot these in your report using RMarkdown. 
+     Following from the example above, you can use the `plot_kaya` function:
+     ```{r plot_oecd_data, echo=TRUE, eval=TRUE, include=TRUE, warning=FALSE, message=FALSE}
+     plot_kaya(oecd_data, "e", log_scale = TRUE, font_size = 12)
+     ```
+     
+     Be sure to set `log_scale = TRUE` in the `plot_kaya` function because 
+     a constant percentage rate of
+     change corresponds to a linear trend in the logarithm of the variable.
+
+3. Next, calculate the rates of change of 
+   _P_, _g_, _e_, and _f_ (the Population, per-capita GDP, energy intensity of 
+   the economy, and carbon-intensity of the energy supply) from your starting 
+   year through `r start_year`, using the `lm` function in R.
+
+    A constant rate of change is represented by a linear relationship between
+    the natural logarithm of the kaya variable and time: for the variable
+    `P` (population), we would write this formula in R as `log(P)~year`.
+    
+    Here is an example of calculating the rate of change of _e_ 
+    (the energy intensity of the economy) for the OECD, using the variable 
+    `oecd_data` that you calculated above:
+    ```{r get_oecd_e_trend, echo=TRUE, include=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
+    # Load the broom library for organizing lm results
+    library(broom)
+    # Load the magrittr library with helper functions for piping data
+    library(magrittr)
+    
+    e_trend = oecd_data %>% filter(year >= 1980) %>%
+      lm(log(e) ~ year, data = .) %>%
+      tidy() %>% filter(term == "year") %$% estimate
+    ```
+
+    For more detailed explanation of the code above, see the handout
+    "New Tools for Data Analysis."
+    
+    Here, we find that `e_trend` = `r round(e_trend, 4)` 
+    (`r round(100 * e_trend, 2)`% per year).
+    
+    You can check your results against the interactive web application by
+    looking at the rates of change reported on the "Trends" tab.
+    Be sure to set the start year on the web app to the same values that you
+    used for calculating the slopes in RMarkdown.
+
+    These numbers are the slopes of the trend lines that you looked at in part 2.
+
+4. Using the rates of change that you determined in part 3, 
+   use the formulas from the "Growth Rates and Trends" section to compute the 
+   values for 
+   _P_, _g_, _e_, and _f_ 
+   in the year `r late_target_year`.
+   
+    Next, use the growth rates of _P_, _g_, _e_, and _f_ to calculate the 
+    growth rate of the total emissions _F_. 
+    Calculate the total CO~2~ emissions (_F_) from the country in 
+    `r late_target_year`, assuming that emissions continue to grow at 
+    historical rates. 
+    
+    I recommend that you write R chunks in your report in a way that you
+    can copy and paste the chunks from one country or region into the analysis
+    for the other countries or regions.
+    
+    It may also be useful to define functions for frequently used 
+    (e.g., see the example `growth` function in the handout on "New Tools for
+    Data Analysis")
+
+    Check your work against the bottom-up numbers in the ``Bottom-Up Analysis'' 
+    table on the bottom of the left-hand pane of the web application.
+
+5. Calculate the emissions target for each country: Set the reference year for 
+   emissions reduction to `r target_ref_year`, and set the target emissions
+   reduction using the table below:
+   
+    The IPCC developed many representative concentration pathways (RCPs) 
+    using a top-down approach, for hitting various targets of radiative forcing 
+    from greenhouse gases. The only RCP that has at least a two-thirds 
+    probability of keeping warming below 2 degrees Celsius is RCP~2.6. 
+    This concentration pathway calls for emissions reductions (relative to 2005) 
+    for different parts of the world listed in the table below:
+
+    ```{r rcp_26_table}
+    rcp_26 %>% 
+      mutate(reduction = map_chr(reduction, ~sprintf("%.0f%%", 100 * .x))) %>%
+      select(Region = region, "Emissions reduction" = reduction) %>%
+      kable(caption = "Percent reduction in CO~2~ emissions in 2050, relative to 2005.",
+            align = "lr")
+    ```
+
+    Note that Southeast Asia has a negative reduction. 
+    This means that countries in this region are allowed a 17% _increase_
+    in CO~2~ emissions (_F_).
+    
+    Set the target year in the web app to `r late_target_year`;
+    set the reference year to `r target_ref_year`;
+    set the emissions reduction to the emissions reduction you are trying to 
+    achieve.
+
+    For each country, how much CO~2~ (_F_) would each country emit in
+    `r late_target_year` in order to meet your policy goal? 
+    (Remember to work this whole exercise for whole world before starting on 
+    the individual countries.)
+    
+    Let's work an example using the Middle East:
+    ```{r middle_east_example, echo = TRUE, eval=TRUE, include=TRUE, warning=FALSE, message=FALSE}
+    F_2005_middle_east = get_kaya_data("Middle East") %>% 
+      filter(year == 2005) %$% F
+    F_2005_middle_east
+    ```
+    ```{r middle_east_example_2, echo = TRUE, eval=TRUE, include=TRUE, warning=FALSE, message=FALSE}
+    middle_east_reduction = 0.32
+    F_goal_middle_east = F_2005_middle_east * (1 - middle_east_reduction)
+    F_goal_middle_east
+    ```
+    
+    Check this result against the interactive web application.
+
+7. Look up what the CO~2~ emission is in `r target_ref_year` and calculate the 
+   rate of change in _F_ that would be necessary to achieve your policy target. 
+   For the `r late_target_year`\ calculation:
+   
+    a. Calculate the ratio of $F_{`r late_target_year`}/F_{`r target_ref_year`}$.
+    b. Take the natural logarithm of this ratio 
+       (in R, the natural logarithm function is `log()`; on your calculator
+       it is "LN").
+    c. Divide the logarithm by the number of years 
+       ($`r late_target_year` - `r target_ref_year`$). 
+       This is the rate of change of _F_. A positive number means growth and a 
+       negative number means a reduction.
+    The percentage rate of change per year is 100 times this number.
+    
+    For our Middle East example:
+    ```{r middle_east_example_3, echo = TRUE, eval=TRUE, include=TRUE, warning=FALSE, message=FALSE}
+    F_2017_middle_east = get_kaya_data("Middle East") %>% 
+      filter(year == 2017) %$% F
+    r_F_middle_east = log(F_goal_middle_east / F_2017_middle_east) / (2050 - 2017)
+    r_F_middle_east
+    ```
+    so total emissions for the Middle East would need to drop by 
+    `r round(100 * r_F_middle_east, 2)`% per year between `r start_year`
+    and `r late_target_year`
+
+8. Now calculate the decarbonization rate implied by the policy goal. This is 
+   the rate of reduction of _ef_, the carbon intensity of the economy. 
+   $F = Pgef$, so $r_F = r_P + r_g + r_e + r_f$. Subtract the projected _r~P~_ 
+   and _r~g~_ 
+   (look them up in the ``Bottom up Analysis'' table) 
+   from _r~F~_, which you just calculated in step~7, 
+   to get the rate of change of _ef_. 
+   Multiply the rate of change of _ef_ by -1 to get the rate of decarbonization
+   (because negative rate of change is a positive rate of decarbonization and
+   vice-versa). 
+   Multiply by 100 to get the percent implied rate of decarbonization.
+
+9. How does the implied rate of decarbonization for each nation compare to the 
+   historical rate of decarbonization (i.e., the trend in _ef_ reported in the 
+   "Bottom up Analysis" table)? 
+   Which nation will have the hardest time meeting this emission goal without 
+   damaging its economy?

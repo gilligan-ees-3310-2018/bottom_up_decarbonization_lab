@@ -1,0 +1,19 @@
+#
+# Wild-card directories
+#
+*_cache/
+# Directories
+#
+.Rproj.user/
+#
+# Root wild card patterns
+#
+*.Rproj
+*.tex
+*.html
+#
+# Individual files
+#
+.Rhistory
+.RData
+.Ruserdata
