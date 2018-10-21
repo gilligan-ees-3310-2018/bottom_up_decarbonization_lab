@@ -1,0 +1,110 @@
+---
+title: "Bottom-Up Decarbonization Policy Analysis Lab Report"
+author: "your name here"
+date: "Due Monday October 29"
+fontfamily: "newtxtext,newtxmath"
+fontsize: "12pt"
+output:
+  pdf_document: default
+  html_document: default 
+---
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE, cache=FALSE, message=FALSE, warning=FALSE)
+
+data_dir = "_data"
+script_dir = "_scripts"
+
+library(pacman)
+p_load(magrittr, tidyverse, lubridate, knitr, broom)
+p_load_gh("jonathan-g/kayadata")
+
+theme_set(theme_bw(base_size = 12))
+
+if (!dir.exists(data_dir)) dir.create(data_dir)
+
+source(file.path(script_dir, "utils.R"), chdir = T)
+
+start_year <- max(get_kaya_data("United States")$year, na.rm = T)
+after_start_year <- start_year + 1
+
+#
+# This is a data frame giving the emissions reductions
+# for different countries and regions. Note that 
+# not all countries are included individually, so if
+# you are analyzing a policy for a country that is not
+# names (e.g., Brazil), you will need
+# to use the reduction for the region that includes
+# that country (Latin America, in the case of Brazil).
+#
+rcp_26 <- tribble(
+  ~region, ~target_year, ~ref_year, ~reduction,
+  "Australia/New Zealand", 2050, 2005,  0.82,
+  "Canada",                2050, 2005,  0.72,
+  "China",                 2050, 2005,  0.78,
+  "India",                 2050, 2005,  0.73,
+  "Japan",                 2050, 2005,  0.66,
+  "South Korea",           2050, 2005,  0.67,
+  "United States",         2050, 2005,  0.73,
+  "Africa",                2050, 2005,  0.28,
+  "Latin America",         2050, 2005,  0.40,
+  "Middle East",           2050, 2005,  0.32,
+  "Southeast Asia",        2050, 2005, -0.17,
+  "Western Europe",        2050, 2005,  0.74,
+  "World",                 2050, 2005,  0.36
+)
+
+target_year <- rcp_26$target_year[1]
+ref_year <- rcp_26$ref_year[1]
+
+```
+# Introduction
+
+> **Replace this with your introduction**
+>
+> Describe what you are doing for this lab and why.
+> The lab involves analysis of what the whole world and some
+> individual countries must do to reduce their carbon dioxide emissions in 
+> `r target_year`
+> to the levels corresponding to the RCP 2.6 emissions pathway that 
+> would keep global warming below 2 degrees Celsius. (RCP stands for
+> "Representative Concentration Pathway." If you are interested in learning
+> more, a beginner's guide to the Representative Concentration Pathways is 
+> available at <https://www.skepticalscience.com/rcp.php>)
+
+
+# Data and Methods
+
+> **Replace this with your data and methods**
+> 
+> Undergraduates will analyze emissions reductions for the whole world,
+> the United States, and China.
+> Graduate Students will analyze emissions reductions for the whole world,
+> the United States, China, Brazil, and India.
+>
+> This is where you should explain how you analyzed the data and include your
+> R code chunks for doing the analysis.
+> It is good to include some plots in this section showing the data for the
+> Kaya variables with the trend lines, and commenting on whether you think
+> the data is well represented by a steady percentage rate of change.
+
+# Results and Discussion
+
+> **Replace this with your results and discussion**
+> 
+> Present the final results of your analysis: For each country or region, 
+> you should present the current CO~2~ emissions (_F_), the target emissions
+> for `r target_year`, the implied rate of change of _F_, the extrapolated
+> rate of change of _G_, the implied rate of change of _ef_, and the 
+> historical rate of change of _ef_.
+> 
+> It would probably be easiest to make a data frame or tibble with a row
+> for each country or region and a column for each variable 
+> (e.g., `F`, `F_2050`, `r_F_impl`, `r_G`, `r_ef_impl`, and `r_ef_hist`)
+> and then use the function `kable` to make the table in your report.
+
+# Conclusions
+
+> **Replace this with your conclusions**
+>
+> What do you conclude from this analysis about the prospects for reducing
+> emissions enough to follow RCP 2.6?
