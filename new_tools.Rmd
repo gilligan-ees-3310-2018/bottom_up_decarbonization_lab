@@ -13,6 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(broom)
 library(magrittr)
+library(kayadata)
 
 theme_set(theme_bw())
 ```
@@ -285,3 +286,172 @@ r_P = 0.0141  # growth rate is 1.41% per yer
 P_2050 = growth(P_2017, r_P, 2017, 2050)
 P_2050
 ```
+
+# `kayadata`: an R package for analyzing Kaya-identity data
+
+You can install the `kayadata` package as follows:
+
+```r
+library(devtools)
+install_github("jonathan-g/kayadata")
+```
+or
+```r
+library(pacman)
+p_load_current_gh("jonathan-g/kayadata")
+```
+
+Once you have installed the `kayadata` package, you load it as follows:
+```r
+library(kayadata)
+```
+
+This package has several useful functions:
+
+* `get_kaya_data(region_name)`: Get Kaya-identity data for a country or region.
+    * **Argument:** `region_name` is the name of the country or region you want 
+      data for (e.g., "United States", "World", "China", etc.).
+      
+        You can inspect a list of countries and regions by running 
+        `kaya_region_list()`.
+    * **Results:** The function returns a data frame with the following columns:
+        * `region`: The country or region.
+        * `year`: The year.
+        * `P`: The population (in billions).
+        * `G`: The gross domestic product (in trillions).
+        * `E`: The primary energy consumption (in quads).
+        * `F`: The energy-related CO~2~ emissions (in millions of metric tons 
+          of CO~2~).
+        * `g`: Per-capita GDP (in thousands of dollars per person).
+        * `e`: The energy intensity of the economy (in quads per trillion 
+          dollars of GDP).
+        * `f`: The emissions intensity of the energy supply (in millions of 
+          metric tons of CO~2~ per quad).
+        * `ef`: The emissions intensity of the economy (in millions of metric 
+          tons of CO~2~ per trillion dollars of GDP).
+* `get_top_down_values(region_name)`: Get projections of the future
+  values of Kaya-identity variables for a country, from the top-down 
+  International Energy Outlook analysis by the U.S. Energy Information 
+  Administration.
+    * **Argument:** `region_name` is the name of the country or region you want 
+      data for (e.g., "United States", "World", "China", etc.).
+    * **Results:** The function returns a data frame with the following columns:
+        * `region`: The country or region.
+        * `year`: The year (five-year intervals from 2015--2050).
+        * `P`: The population (in billions).
+        * `G`: The gross domestic product (in trillions).
+        * `E`: The primary energy consumption (in quads).
+        * `F`: The energy-related CO~2~ emissions (in millions of metric tons 
+          of CO~2~).
+        * `g`: Per-capita GDP (in thousands of dollars per person).
+        * `e`: The energy intensity of the economy (in quads per trillion 
+          dollars of GDP).
+        * `f`: The emissions intensity of the energy supply (in millions of 
+          metric tons of CO~2~ per quad).
+        * `ef`: The emissions intensity of the economy (in millions of metric 
+          tons of CO~2~ per trillion dollars of GDP).
+* `get_top_down_trends(region_name)`: Get the trends for Kaya-identity variables 
+  for a country, from the top-down International Energy OUtlook analysis by the 
+  U.S. Energy Information Administration.
+    * **Argument:** `region_name` is the name of the country or region you 
+      want data for (e.g., "United States", "World", "China", etc.).
+    * **Results:** The function returns a data frame with the following columns:
+        * `region`: The country or region
+        * `P`: The rate of change of the population (multiply by 100 to get 
+          the rate in percent per year).
+        * `G`: The rate of change of GDP.
+        * `E`: The rate of change of primary energy consumption.
+        * `F`: The rate of change of CO~2~ emissions.
+        * `g`: The rate of change of per-capita GDP.
+        * `e`: The rate of change of the energy intensity of the economy.
+        * `f`: The rate of change of the emissions intensity of the energy 
+          supply.
+        * `ef`: The rate of change of the emissions intensity of the economy.
+* `get_fuel_mix(region_name)`: Get the mixture of primary energy sources used
+  by a country or region.
+      * **Argument:** `region_name` is the name of the country or region you 
+      want data for (e.g., "United States", "World", "China", etc.).
+    * **Results:** The function returns a data frame with the following columns:
+        * `region`: The country or region
+        * `region_code`: A three-letter code for the country or region.
+        * `geography`: The kind of region ("nation", "region", or "world").
+        * `year`: The year the data represents.
+        * `fuel`: The kind of energy source ("Oil", "Natural Gas", "Coal", 
+          "Nuclear", "Hydro", or "Renewables")
+        * `quads`: The number of quads of that kind of energy consumed in that 
+          year.
+        * `pct`: The percent of total primary energy consumption that came from
+          that kind of energy source.
+* `plot_kaya(kaya_data, variable, start_year, stop_year, y_lab, log_scale,
+   trend_line, points, font_size)`: Plot a time series showing trends in a 
+   Kaya variable.
+    * **Arguments:**
+        * `kaya_data`: A data frame, like those returned by `get_kaya_data`.
+        * `variable`: A quoted Kaya variable name ("P", "G", "E", "F", "g", 
+          "e", "f", or "ef").
+        * `start_year` (optional): If you want to do trend analysis, you can
+          specify the year to start calculating the trend.
+          The graph will color the years from `start_year` to `stop_year`
+          in a darker color.
+          
+          If you don't specify `start_year`, the default value is 1980.
+          You can eliminate the special coloring and trend analysis 
+          by setting `start_year = NULL`.
+        * `stop_year` (optional): The year to stop the trend analysis. 
+          If you don't specify `stop_year`, it defaults to the last year
+          in the data frame.
+        * `y_lab` (optional): The label for the y-axis. If you don't specify 
+          this, R will pick an appropriate label based on which variable you
+          choose.
+        * `log_scale` (optional): Set this to `TRUE` or `FALSE` to specify 
+          whether to plot the y-axis on a logarithmic scale. 
+          The default is to set `log_scale = FALSE` if you don't specify a 
+          value.
+        * `trend_line` (optional): Set this to `TRUE` or `FALSE` to specify 
+          whether to plot a trend line. 
+          The default is to set `trend_line = FALSE` if you don't specify a 
+          value.
+        * `points` (optional): Set this to `TRUE` or `FALSE` to specify 
+          whether to plot points on the line. If you are making a small
+          graph, the points may make the graph too busy.
+          The default is to set `points = TRUE` if you don't specify a 
+          value.
+        * `font_size` (optional): This lets you adjust the size of the fonts
+          used in labeling the axes on the graph.
+          If you are making small plots and the y-axis label won't fit on
+          the side of the graph, you might want to use a smaller font size.
+          The default is to set `font_size = 20` if you don't specify a value.
+    * **Result:** This function returns a plot object.
+    * **Example:**
+      ```{r example_kaya_plot, echo=TRUE, include=TRUE}
+      kd <- get_kaya_data("World")
+      plot_kaya(kd, "F")
+      ```
+      ```{r example_kaya_plot_2, echo=TRUE, include=TRUE}
+      plot_kaya(kd, "F", log_scale = TRUE, font_size = 12, trend_line = TRUE)
+      ```
+      ```{r example_kaya_plot_3, echo=TRUE, include=TRUE}
+      plot_kaya(kd, "F", points = FALSE, start_year = NULL, font_size = 12)
+      ```
+* `plot_fuel_mix(fuel_mix, collapse_renewables)`: Make a "donut" chart showing
+  the amount of energy the country got from different energy sources.
+    * **Arguments:**
+        * `fuel_mix`: A data frame with the fuel mix for the country, like the
+          ones returned by `get_fuel_mix()`
+        * `collapse_renewables` (optional): Set this to `TRUE` or `FALSE` to
+          specify whether to combine "Hydro" with other renewables to make one
+          "Renewables" category (`TRUE`), or plot "Hydro" separately from the
+          other renewables (`FALSE`).
+          
+          If you don't specify `collapse_renewables`, the default is to set
+          `collapse_renewables = TRUE`.
+    * **Results:** A plot object with a donut chart.
+    * **Example:**
+      ```{r example_fuel_plot, echo=TRUE, include=TRUE}
+      fm <- get_fuel_mix("World")
+      plot_fuel_mix(fm)
+      ```
+      ```{r example_fuel_plot_2, echo=TRUE, include=TRUE}
+      plot_fuel_mix(fm, collapse_renewables = FALSE)
+      ```
+  
