@@ -1,7 +1,7 @@
 ---
 title: "Instructions for Bottom-Up Decarbonization Policy Analysis Lab"
 author: "Jonathan Gilligan"
-date: "Reading for Lab on Monday Oct.\ 22"
+date: "Reading for Lab on Monday Oct.\ 22. Revised and corrected Monday evening, Oct.\ 22."
 fontfamily: "newtxtext,newtxmath"
 fontsize: "12pt"
 output:
@@ -112,6 +112,17 @@ rcp_26 <- tribble(
 )
 
 ```
+# Note
+
+This is a revised and corrected version of the instructions. I corrected the
+error in step 6 that a student called to my attention during lab today.
+
+I also added a concise outline of the steps before the detailed step-by-step
+instructions.
+
+Nothing has changed about the substance of the lab. All I have done is to 
+clarify and correct the original instructions.
+
 # Introduction
 
 The purpose of this homework is to get a sense of the challenges to cutting 
