@@ -367,6 +367,15 @@ This package has several useful functions:
         * `f`: The rate of change of the emissions intensity of the energy 
           supply.
         * `ef`: The rate of change of the emissions intensity of the economy.
+* `project_top_down(region_name, year)`: Calculate projected values for 
+  Kaya identity variables at a future year from the present through 2050.
+    * **Arguments:** 
+        * `region_name` is the name of the country or region you want 
+          data for.
+        * `year`: The year you want projected data for (through 2050).
+    * **Results:** A data frame with one row and columns for `region`,
+      `year`, and the Kaya variables: _P_, _G_, _E_, _F_, _g_, _e_, _f_, and
+      _ef_.
 * `get_fuel_mix(region_name)`: Get the mixture of primary energy sources used
   by a country or region.
       * **Argument:** `region_name` is the name of the country or region you 
@@ -454,4 +463,26 @@ This package has several useful functions:
       ```{r example_fuel_plot_2, echo=TRUE, include=TRUE}
       plot_fuel_mix(fm, collapse_renewables = FALSE)
       ```
-  
+* `kaya_region_list()`: Get a list of regions and countries for which you can
+  get Kaya data.
+* `emissions_factors()`: Get a data frame with columns for 
+    * `fuel`: The energy source
+    * `emission_factor`: The emissions from that energy source, in million
+      metric tons of CO~2~ per quad of energy.
+* `generation_capacity()`: Get a data frame with generation capacity of a 
+  typical power plant for different kinds of energy sources. 
+  This data frame has columns:
+    * `fuel`: The energy source.
+    * `description`: A description of the kind of power plant.
+    * `nameplate_capacity`: The "nameplate capacity" of a typical power plant
+      of that type. The nameplate capacity is the power output when the
+      plant is running at its maximum capacity.
+    * `capacity_factor`: The capacity factor. This is the fraction of the 
+      nameplate capacity that the power plant can produce over an average 
+      year.
+      
+        The average power output from a power plant is the nameplate capacity
+        times the capacity factor:
+        $$ \text{average power} = \text{nameplate capacity} \times 
+           \text{capacity factor} $$
+

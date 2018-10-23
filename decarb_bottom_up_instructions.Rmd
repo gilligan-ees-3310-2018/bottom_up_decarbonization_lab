@@ -73,15 +73,12 @@ short_due_date_1 <- stamp("Mar. 1")(due_date_1)
 long_due_date_2 <- stamp("Monday, March 1")(due_date_2)
 short_due_date_2 <- stamp("Mar. 1")(due_date_2)
 
-start_year <- max(get_kaya_data("United States")$year, na.rm = T)
-after_start_year <- start_year + 1
+current_year <- max(get_kaya_data("United States")$year, na.rm = T)
+after_current_year <- current_year + 1
 
-target_ref_year <- 2005
-early_target_year <- 2030
-late_target_year  <- 2050
-
-early_target_reduction <- 0.36
-late_target_reduction  <- 0.80
+ref_year <- 2005
+target_year  <- 2050
+target_reduction <- 0.80
 
 eia_report_year <- max(get_top_down_values("United States")$year, na.rm = T)
 donut_year <- max(kayadata::get_fuel_mix("United States")$year, na.rm = T)
@@ -166,13 +163,13 @@ The target year for accomplishing the emissions reductions, the reductions you
 hope to achieve for the country, and the reference year. 
 
 For instance, if your 
-goal is for emissions in `r late_target_year` to be 
-`r round(100 * late_target_reduction)`% less than they were in 
-`r target_ref_year`, you would 
+goal is for emissions in `r target_year` to be 
+`r round(100 * target_reduction)`% less than they were in 
+`r ref_year`, you would 
 put 
-`r late_target_year` for the target year, 
-`r round(100 * late_target_reduction)`% for the emissions reduction, 
-and `r target_ref_year` for the reference year.  
+`r target_year` for the target year, 
+`r round(100 * target_reduction)`% for the emissions reduction, 
+and `r ref_year` for the reference year.  
 If you want to indicate a growth in emissions, rather than a reduction, 
 just enter a negative number for the emissions reduction.
 
@@ -268,7 +265,7 @@ We will assume that all of the rates of change in the growth and
 decarbonization trends we are studying will be constant from year to year.
 A constant percentage rate of change implies that the quantity follows
 an exponential growth function, 
-so if you know the values for _P_, _g_, _e_, and _f_ in `r start_year`, 
+so if you know the values for _P_, _g_, _e_, and _f_ in `r current_year`, 
 then at some future year _y_:
 
 ```{r lefteqn_for_mathjax, echo=FALSE, eval=TRUE, results="asis", message=FALSE, warning=FALSE}
@@ -285,11 +282,11 @@ if(is_output_html()) {
 ```
 $$
 \begin{aligned}
-  P(y) &= P(`r start_year`) \times \exp(r_P (y - `r start_year`)),\\
-  g(y) &= g(`r start_year`) \times \exp(r_g (y - `r start_year`)),\\
-  e(y) &= e(`r start_year`) \times \exp(r_e (y - `r start_year`)),\\
+  P(y) &= P(`r current_year`) \times \exp(r_P (y - `r current_year`)),\\
+  g(y) &= g(`r current_year`) \times \exp(r_g (y - `r current_year`)),\\
+  e(y) &= e(`r current_year`) \times \exp(r_e (y - `r current_year`)),\\
   \lefteqn{\text{and}}\\
-  f(y) &= f(`r start_year`) \times \exp(r_f (y - `r start_year`)),\\
+  f(y) &= f(`r current_year`) \times \exp(r_f (y - `r current_year`)),\\
 \end{aligned}
 $$
 where _r~P~_ is the growth rate of the population, _r~g~_ is the growth rate of the per-capita GDP, etc.
@@ -317,10 +314,10 @@ rates of change of each of the quantities:
 $$
 \begin{aligned}
   \mathrm{GDP}(y) &= P(y)\times g(y)\\
-    &= P(`r start_year`) \times \exp(r_p (y - `r start_year`)) 
-    \times g(`r start_year`) \times \exp(r_g (y - `r start_year`))\\
-    &= P(`r start_year`)\times g(`r start_year`)
-    \times \exp((r_P + r_g) (y - `r start_year`))\\
+    &= P(`r current_year`) \times \exp(r_p (y - `r current_year`)) 
+    \times g(`r current_year`) \times \exp(r_g (y - `r current_year`))\\
+    &= P(`r current_year`)\times g(`r current_year`)
+    \times \exp((r_P + r_g) (y - `r current_year`))\\
     \lefteqn{\text{so}}\\
   r_{\mathrm{GDP}} &= r_{P\times g} = r_P + r_g.
 \end{aligned}
@@ -348,9 +345,34 @@ bottom_up_country_assignments %>% group_by(class) %>%
 ```
 
 For the bottom-up analysis, use the Kaya Identity to make reasonable 
-extrapolations of the population and per-capita GDP through `r late_target_year`. 
+extrapolations of the population and per-capita GDP through `r target_year`. 
 
 Repeat the steps below for each country or region:
+
+### Outline:
+
+To analyze the policy for each country:
+
+1. Get the Kaya identity data for the country
+2. Figure out appropriate starting years for calculating the historical trends 
+   for the Kaya variables _P_, _g_, _e_, and _f_.
+3. Calculate the _historical trends_ for the Kaya variables from the starting
+   year you determined in step (2).
+4. Use the _historical trends_ to extrapolate projected values for _P_, _g_, 
+   _e_, and _f_ in `r target_year`.
+5. Calculate the policy goal for emissions _F_ in `r target_year`.
+   This uses the policy criteria (target emissions reduction) and the 
+   measured emissions _F_ in `r ref_year`, from the Kaya data for your
+   country.
+6. Calculate the _implied rate of change_ of _F_ between `r current_year`
+   and `r target_year`, in order to reduce emissions to the policy goal that
+   you calculated in step (5).
+7. Combine the _implied rate of change_ of _F_ with the _historical trends_ of
+   _P_ and _g_ to calculate the _implied rate of change_ of _ef_ that you 
+   calculated in step (3) in order to meet the policy goal from step (5).
+8. Compare the _implied rate of change_ of _ef_ that you calculated in step (7)
+   to the _historical trend_ of _ef_ that you can determine from the
+   _historical trends_ of _e_ and _f_ that you calculated in step (3).
 
 ### Detailed steps:
 
@@ -360,7 +382,7 @@ using the `kayadata` library in RStudio:
 1. Open the web app at <https://ees3310.jgilligan.org/decarbonization>, 
    select the country you want to analyze, to start, leave the 
    "Calculate trends starting in" at its default value (1980), 
-   and write down the most current (`r start_year`) values for 
+   and write down the most current (`r current_year`) values for 
    _P_, _g_, _e_, _f_, _ef_, and _F_. 
    
      Alternately, use the `kayadata` package in RStudio to load the data for
@@ -403,7 +425,7 @@ using the `kayadata` library in RStudio:
 3. Next, calculate the rates of change of 
    _P_, _g_, _e_, and _f_ (the Population, per-capita GDP, energy intensity of 
    the economy, and carbon-intensity of the energy supply) from your starting 
-   year through `r start_year`, using the `lm` function in R.
+   year through `r current_year`, using the `lm` function in R.
 
     A constant rate of change is represented by a linear relationship between
     the natural logarithm of the kaya variable and time: for the variable
@@ -440,12 +462,12 @@ using the `kayadata` library in RStudio:
    use the formulas from the "Growth Rates and Trends" section to compute the 
    values for 
    _P_, _g_, _e_, and _f_ 
-   in the year `r late_target_year`.
+   in the year `r target_year`.
    
     Next, use the growth rates of _P_, _g_, _e_, and _f_ to calculate the 
     growth rate of the total emissions _F_. 
     Calculate the total CO~2~ emissions (_F_) from the country in 
-    `r late_target_year`, assuming that emissions continue to grow at 
+    `r target_year`, assuming that emissions continue to grow at 
     historical rates. 
     
     I recommend that you write R chunks in your report in a way that you
@@ -460,7 +482,7 @@ using the `kayadata` library in RStudio:
     table on the bottom of the left-hand pane of the web application.
 
 5. Calculate the emissions target for each country: Set the reference year for 
-   emissions reduction to `r target_ref_year`, and set the target emissions
+   emissions reduction to `r ref_year`, and set the target emissions
    reduction using the table below:
    
     The IPCC developed many representative concentration pathways (RCPs) 
@@ -482,13 +504,13 @@ using the `kayadata` library in RStudio:
     This means that countries in this region are allowed a 17% _increase_
     in CO~2~ emissions (_F_).
     
-    Set the target year in the web app to `r late_target_year`;
-    set the reference year to `r target_ref_year`;
+    Set the target year in the web app to `r target_year`;
+    set the reference year to `r ref_year`;
     set the emissions reduction to the emissions reduction you are trying to 
     achieve.
 
     For each country, how much CO~2~ (_F_) would each country emit in
-    `r late_target_year` in order to meet your policy goal? 
+    `r target_year` in order to meet your policy goal? 
     (Remember to work this whole exercise for whole world before starting on 
     the individual countries.)
     
@@ -506,16 +528,16 @@ using the `kayadata` library in RStudio:
     
     Check this result against the interactive web application.
 
-7. Look up what the CO~2~ emission is in `r target_ref_year` and calculate the 
+6. Look up what the CO~2~ emission is in `r current_year` and calculate the 
    rate of change in _F_ that would be necessary to achieve your policy target. 
-   For the `r late_target_year`\ calculation:
+   For the `r target_year`\ calculation:
    
-    a. Calculate the ratio of $F_{`r late_target_year`}/F_{`r target_ref_year`}$.
+    a. Calculate the ratio of $F_{`r target_year`}/F_{`r current_year`}$.
     b. Take the natural logarithm of this ratio 
        (in R, the natural logarithm function is `log()`; on your calculator
        it is "LN").
     c. Divide the logarithm by the number of years 
-       ($`r late_target_year` - `r target_ref_year`$). 
+       ($`r target_year` - `r current_year`$). 
        This is the rate of change of _F_. A positive number means growth and a 
        negative number means a reduction.
     The percentage rate of change per year is 100 times this number.
@@ -524,14 +546,15 @@ using the `kayadata` library in RStudio:
     ```{r middle_east_example_3, echo = TRUE, eval=TRUE, include=TRUE, warning=FALSE, message=FALSE}
     F_2017_middle_east = get_kaya_data("Middle East") %>% 
       filter(year == 2017) %$% F
-    r_F_middle_east = log(F_goal_middle_east / F_2017_middle_east) / (2050 - 2017)
+    r_F_middle_east = log(F_goal_middle_east / F_2017_middle_east) / 
+      (2050 - 2017)
     r_F_middle_east
     ```
     so total emissions for the Middle East would need to drop by 
-    `r round(100 * r_F_middle_east, 2)`% per year between `r start_year`
-    and `r late_target_year`
+    `r round(100 * r_F_middle_east, 2)`% per year between `r current_year`
+    and `r target_year`
 
-8. Now calculate the decarbonization rate implied by the policy goal. This is 
+7. Now calculate the decarbonization rate implied by the policy goal. This is 
    the rate of reduction of _ef_, the carbon intensity of the economy. 
    $F = Pgef$, so $r_F = r_P + r_g + r_e + r_f$. Subtract the projected _r~P~_ 
    and _r~g~_ 
@@ -543,7 +566,7 @@ using the `kayadata` library in RStudio:
    vice-versa). 
    Multiply by 100 to get the percent implied rate of decarbonization.
 
-9. How does the implied rate of decarbonization for each nation compare to the 
+8. How does the implied rate of decarbonization for each nation compare to the 
    historical rate of decarbonization (i.e., the trend in _ef_ reported in the 
    "Bottom up Analysis" table)? 
    Which nation will have the hardest time meeting this emission goal without 
